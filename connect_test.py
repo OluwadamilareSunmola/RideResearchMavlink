@@ -10,9 +10,9 @@ print(f"Heartbeat received from system {the_connection.target_system}, component
 
 with open("telemetry_log.txt", "w") as f:
     while True:
-        msg = the_connection.recv_match(blocking=True)
+        msg = the_connection.recv_match(blocking=True) #this allows us to receive all the messages
         if msg:
-            f.write(str(msg) + "\n")
+            f.write(str(msg) + "\n") #we are writing the messages to a file
             f.flush()
 
 """
