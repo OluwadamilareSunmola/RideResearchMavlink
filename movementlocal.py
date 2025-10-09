@@ -112,6 +112,74 @@ Bit	Field Ignored	Meaning
 11	yaw_rate	Ignore yaw rate - yaw rate is used when you want drone to constantly turn in a certain direction
 
 There are more bits, but these are the most common.
+
+MAVLINK POSITION FRAMES EXPLANATION
+-----------------------------------
+
+Two main movement command types:
+1. set_position_target_local_ned  --> LOCAL reference frame
+2. set_position_target_global_int --> GLOBAL reference frame
+
+
+===================================
+LOCAL NED FRAME
+===================================
+
+Purpose:
+Used to control position/velocity/acceleration in a small, local 3D space.
+Coordinates are in meters relative to the drone’s EKF origin 
+(the first point where it got a good GPS fix or IMU position estimate).
+
+Reference axes (NED):
+  X -> North  (+forward)
+  Y -> East   (+right)
+  Z -> Down   (+downward)
+  (Negative Z means up)
+
+Example:
+x = 10  → move 10m north
+y = 0   → no east/west change
+z = -5  → go 5m up (because NED down is positive)
+
+Use cases:
+- Short-range movement
+- Precise hovering or takeoff
+- Indoor or GPS-denied flight
+- Path following using relative distances
+
+Example command:
+the_connection.mav.set_position_target_local_ned_send(
+    time_boot_ms,
+    target_system,
+    target_component,
+    mavutil.mavlink.MAV_FRAME_LOCAL_NED,
+    0b0000111111000111,  # ignore velocity/accel/yaw rate
+    10, 0, -5,            # x, y, z in meters (relative)
+    0, 0, 0,              # velocity (ignored)
+    0, 0, 0,              # acceleration (ignored)
+    0, 0)                 # yaw and yaw rate
+
+
+===================================
+GLOBAL FRAME
+===================================
+
+Purpose:
+Used to move the drone to an absolute GPS coordinate on Earth.
+Coordinates are in latitude, longitude, and altitude.
+
+Reference system:
+- Based on WGS-84 Earth model (real GPS positions)
+- Altitude is usually relative to takeoff point (AGL)
+
+Frame types:
+MAV_FRAME_GLOBAL               -> Altitude above sea level (AMSL)
+MAV_FRAME_GLOBAL_RELATIVE_ALT  -> Altitude relative to takeoff
+MAV_FRAME_GLOBAL_TERRAIN_ALT   -> Altitude above terrain
+
+Example:
+target_lat = int(-35.3629849 * 1e7)  # latit*_
+
 """
 from pymavlink import mavutil
 import time
