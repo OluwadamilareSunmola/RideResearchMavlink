@@ -9,12 +9,15 @@ It includes:
     - Sending commands (e.g., set flight mode)
     - Sending and receiving ToF data
     - Retrieving telemetry (GPS, position, heartbeat)
+    - Logging telemetry and ToF data to CSV
 ===========================================================
 """
 
 from pymavlink import mavutil
 import time
 from collections import deque
+import csv
+import os
 
 
 class DWM_MAVLink_Driver:
@@ -176,6 +179,60 @@ class DWM_MAVLink_Driver:
         return telemetry
 
     # ----------------------------------------------------------------------
+    # Data Logging
+    # ----------------------------------------------------------------------
+
+    def log_to_csv(self, filename='flight_log.csv'):
+        """
+        Log telemetry and ToF data to CSV file.
+
+        Args:
+            filename (str): CSV file path for logging
+        """
+        # Get current telemetry
+        telemetry = self.get_telemetry()
+        timestamp = time.time()
+        
+        # Check if file exists to determine if we need headers
+        file_exists = os.path.isfile(filename)
+        
+        with open(filename, 'a', newline='') as f:
+            writer = csv.writer(f)
+            
+            # Write header if file is new
+            if not file_exists:
+                writer.writerow([
+                    'timestamp',
+                    'position_x', 'position_y', 'position_z',
+                    'gps_lat', 'gps_lon', 'gps_alt',
+                    'armed',
+                    'tof_distance_cm', 'tof_device_id'
+                ])
+            
+            # Extract telemetry fields
+            pos = telemetry.get('position', {})
+            gps = telemetry.get('gps', {})
+            armed = telemetry.get('armed', False)
+            
+            # Get latest ToF data from queue
+            tof_distance = None
+            tof_device = None
+            if len(self.tof_queue) > 0:
+                latest_tof = self.tof_queue[-1]
+                tof_distance = latest_tof.current_distance
+                tof_device = latest_tof.id
+            
+            # Write data row
+            writer.writerow([
+                timestamp,
+                pos.get('x', ''), pos.get('y', ''), pos.get('z', ''),
+                gps.get('lat', ''), gps.get('lon', ''), gps.get('alt', ''),
+                armed,
+                tof_distance if tof_distance else '',
+                tof_device if tof_device else ''
+            ])
+
+    # ----------------------------------------------------------------------
     # Queue Utilities
     # ----------------------------------------------------------------------
 
@@ -222,9 +279,9 @@ for i in range(5):
     time.sleep(0.5)
 
 # ---------------------------------------------------------------
-# TEST 3: Receive telemetry and ToF data
+# TEST 3: Receive telemetry and ToF data with logging
 # ---------------------------------------------------------------
-print("\n=== Test 3: Receive Telemetry ===")
+print("\n=== Test 3: Receive Telemetry and Log ===")
 for i in range(10):
     telemetry = driver.get_telemetry()
     if telemetry:
@@ -234,10 +291,14 @@ for i in range(10):
     tof_data = driver.receive_tof_data(timeout=0.1)
     if tof_data:
         print(f"ToF received: {tof_data}")
-
+    
+    # Log data to CSV
+    driver.log_to_csv('flight_log.csv')
+    
     time.sleep(0.5)
 
 # ---------------------------------------------------------------
 # FINAL SUMMARY
 # ---------------------------------------------------------------
 print(f"\nPhase 1 Complete! ToF messages in queue: {driver.get_tof_queue_size()}")
+print(f"Data logged to: flight_log.csv")
