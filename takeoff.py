@@ -59,6 +59,18 @@ the_connection.mav.command_long_send(
     10          # param7: target altitude (10 m)
 )
 
+"""
+the_connection.mav.command_long_send(
+    the_connection.target_system,
+    the_connection.target_component,
+    mavutil.mavlink.MAV_CMD_DO_SET_MODE,
+    0,
+    mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
+    4,  # 4 = GUIDED mode
+    0, 0, 0, 0, 0)
+
+"""
+
 while True:
     msg = the_connection.recv_match(
         type=["COMMAND_ACK", "ALTITUDE", "HEARTBEAT"],
