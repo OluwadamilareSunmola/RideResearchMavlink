@@ -2,8 +2,8 @@ import serial
 import time
 
 class DroneController:
-    def __init__(self, port="/dev/ttyUSB0", baud=9600):
-        self.ser = serial.Serial(port, baud, timeout=1)
+    def __init__(self, port="/dev/ttyUSB0", baud=115200):
+        self.ser = serial.Serial(port, baud, timeout=0.2)
 
     def send(self, payload):
         self.ser.write(payload.encode())
@@ -12,45 +12,43 @@ class DroneController:
         data = self.ser.readline().decode().strip()
         return data
 
-    def wait_until_ready(self):
+    def wait_for_ack(self):
         while True:
             msg = self.receive()
-            if msg == "ready" or msg == "idle" or msg == "done":
-                break
+            if msg in ("ACK", "ERR"):
+                return msg
             time.sleep(0.05)
 
-    def takeoff(self):
-        self.send("A")
-        self.wait_until_ready()
-
-    def up(self):
-        self.send("B")
-        self.wait_until_ready()
-
-    def down(self):
-        self.send("C")
-        self.wait_until_ready()
-
-    def square(self):
-        self.send("D")
-        self.wait_until_ready()
-
-    def land(self):
-        self.send("E")
-        self.wait_until_ready()
-
-    def loop(self):
+    def wait_for_done(self):
         while True:
             msg = self.receive()
-            if msg:
-                print("STM:", msg)
+            if msg in ("done", "idle"):
+                return msg
             time.sleep(0.05)
 
+    def command(self, letter):
+        self.send(letter)
+        ack = self.wait_for_ack()
+        print("ACK status:", ack)
+
+        if ack == "ERR":
+            return
+
+        done = self.wait_for_done()
+        print("Execution status:", done)
+
+    # Drone commands
+    def takeoff(self): self.command("A")
+    def up(self):      self.command("B")
+    def down(self):    self.command("C")
+    def square(self):  self.command("D")
+    def land(self):    self.command("E")
 
 if __name__ == "__main__":
     ctrl = DroneController()
 
     while True:
+        print("\nCommands:")
         print("1 Takeoff")
         print("2 Up")
         print("3 Down")
@@ -58,17 +56,15 @@ if __name__ == "__main__":
         print("5 Land")
         choice = input("Command: ").strip()
 
-        if choice == "1":
-            ctrl.takeoff()
-        elif choice == "2":
-            ctrl.up()
-        elif choice == "3":
-            ctrl.down()
-        elif choice == "4":
-            ctrl.square()
-        elif choice == "5":
-            ctrl.land()
+        mapping = {
+            "1": ctrl.takeoff,
+            "2": ctrl.up,
+            "3": ctrl.down,
+            "4": ctrl.square,
+            "5": ctrl.land
+        }
 
-        resp = ctrl.receive()
-        if resp:
-            print("STM:", resp)
+        if choice in mapping:
+            mapping[choice]()
+        else:
+            print("Invalid choice")
